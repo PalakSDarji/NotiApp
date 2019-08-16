@@ -9,29 +9,46 @@ import android.content.Intent
 import android.app.NotificationChannel
 import android.graphics.Color
 import android.app.Notification
+import android.content.SharedPreferences
 import androidx.fragment.app.Fragment
 
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var stringFragmentName : String
+    var stringFragmentName : String = "fragment1"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        println("FRAGG : onCreate Main savedInstanceState : $savedInstanceState, intent : $intent")
-        if(intent != null){
-            val values : String? = intent.getStringExtra("INTENT_FRAG_NAME")
-            println("FRAGG : onCreate values : $values " + " flags : "+intent.flags)
-            if(values != null && stringFragmentName == null){
-                stringFragmentName = values
+        init(intent,true)
+    }
+
+    private fun init(i : Intent, checkRecent : Boolean) {
+
+        println("FRAGG : onCreate Main intent : $i")
+        if(i != null){
+            val values : String? = i.getStringExtra("INTENT_FRAG_NAME")
+
+            if(checkRecent){
+                if(values != null && !wasLaunchedFromRecents()){
+                    stringFragmentName = values
+                }
             }
+            else{
+                if(values != null){
+                    stringFragmentName = values
+                }
+            }
+
+
         }
 
-        stringFragmentName = "fragment1"
-
         loadFragment(true)
+    }
+
+    protected fun wasLaunchedFromRecents(): Boolean {
+        return intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY
     }
 
     override fun onBackPressed() {
@@ -106,10 +123,21 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        println("FRAGG : onNewIntent $intent")
+        if (intent != null) {
+            init(intent,false)
+        }
+
+    }
+
     fun startNotif(){
 
         val notificationIntent = Intent(this, MainActivity::class.java)
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        notificationIntent.setAction(Intent.ACTION_MAIN);
+        notificationIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        //notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         notificationIntent.putExtra("INTENT_FRAG_NAME", "fragment3")
 
         // from stackoverflow.com/questions/11551195/intent-from-notification-does-not-have-extras
@@ -121,7 +149,7 @@ class MainActivity : AppCompatActivity() {
         // both of these approaches now work: FLAG_CANCEL, FLAG_UPDATE; the uniqueInt may be the real solution.
         //PendingIntent pendingIntent = PendingIntent.getActivity(this, uniqueInt, showFullQuoteIntent, PendingIntent.FLAG_CANCEL_CURRENT);
         val uniqueInt = (System.currentTimeMillis() and 0xfffffff).toInt()
-        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = PendingIntent.getActivity(this, uniqueInt, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
